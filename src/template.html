@@ -33,6 +33,8 @@ h1{font-size:1.5rem;margin:8px 0 4px}
 .progress{color:var(--muted);font-size:.9rem}
 .prompt{font-size:1.15rem;margin:6px 0 10px}
 .big{font-size:2rem;letter-spacing:.2em;text-align:center;margin:12px 0}
+.glyphs{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:12px 0}
+.glyph{width:110px;height:110px;color:var(--ink);background:var(--pick);border-radius:12px}
 .opts{display:grid;gap:10px;grid-template-columns:1fr 1fr}
 .opt{cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:12px;font:inherit;font-size:1.1rem;text-align:center}
 .opt:hover{border-color:var(--accent)}
@@ -61,7 +63,7 @@ footer{color:var(--muted);font-size:.8rem;margin:24px 0 8px;text-align:center}
     <p class="sub">共 <span id="count"></span> 條四字主條成語（教育部《成語典》）。先選題型，再開始作答。</p>
     <div class="types">
       <button class="type" data-type="meaning"><b>洞築機先</b><span>依各字的偏旁或筆畫，選出正確成語</span></button>
-      <button class="type" data-type="blank"><b>見微知著</b><span>只看各字的筆畫數，選出正確成語</span></button>
+      <button class="type" data-type="blank"><b>見微知著</b><span>看各字字形的起始筆畫，選出正確成語</span></button>
       <button class="type" data-type="scramble"><b>拼字魔方</b><span>四個字打亂，依序排回成語</span></button>
       <button class="type" data-type="syn"><b>近義闖關</b><span>看成語，選出正確的近義成語</span></button>
     </div>
@@ -69,8 +71,8 @@ footer{color:var(--muted);font-size:.8rem;margin:24px 0 8px;text-align:center}
       <div class="row">
         <span>難度</span>
         <span>
-          <button class="btn ghost" data-level="easy">容易：露出 2 個字</button>
-          <button class="btn ghost" data-level="hard">困難：露出 1 個字</button>
+          <button class="btn ghost" data-level="easy">容易：每字 4 筆</button>
+          <button class="btn ghost" data-level="hard">困難：每字 2 筆</button>
         </span>
       </div>
       <div class="row" style="margin-top:12px">
@@ -107,6 +109,7 @@ footer{color:var(--muted);font-size:.8rem;margin:24px 0 8px;text-align:center}
 
 <script>
 const IDIOMS = /*__DATA__*/[];
+const STROKES = /*__STROKES__*/{};
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
@@ -117,14 +120,30 @@ const TYPE_NAME = { meaning: '洞築機先', blank: '見微知著', scramble: '�
 let state = null;
 let level = 'hard';
 
-// 露出的字數由難度決定（至少露出 1 字，不會四個字都要猜）；其餘字顯示筆畫或偏旁
-function revealClue(it, useRadical) {
-  const revealCount = level === 'easy' ? 2 : 1;
-  const idxs = shuffle([0, 1, 2, 3]).slice(0, revealCount);
-  return it.chars.map((c, i) => {
-    if (idxs.includes(i)) return c.c;
-    return useRadical ? (c.r || '？') : c.s + '畫';
-  }).join('　');
+// 字形筆畫線索：每個字只露出前幾筆（依難度），不露出整字，四個字都要自己猜
+function strokeCount() { return level === 'easy' ? 4 : 2; }
+function glyphsFor(it, k) {
+  return it.chars.map(c => ({ ch: c.c, strokes: (STROKES[c.c] || []).slice(0, k) }));
+}
+function glyphRow(glyphs) {
+  const row = el('div', 'glyphs');
+  glyphs.forEach(g => {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 1024 1024');
+    svg.setAttribute('class', 'glyph');
+    const grp = document.createElementNS(ns, 'g');
+    grp.setAttribute('transform', 'matrix(1 0 0 -1 0 900)');
+    g.strokes.forEach(d => {
+      const p = document.createElementNS(ns, 'path');
+      p.setAttribute('d', d);
+      p.setAttribute('fill', 'currentColor');
+      grp.appendChild(p);
+    });
+    svg.appendChild(grp);
+    row.appendChild(svg);
+  });
+  return row;
 }
 
 function firstSyn(w) {
@@ -141,14 +160,15 @@ function buildQuestions(type, n) {
     if (type === 'meaning') {
       if (!it.chars) continue;
       const useRadical = Math.random() < 0.5;
-      const clue = revealClue(it, useRadical);
       const distract = pick(IDIOMS.filter(x => x.word !== it.word), 3).map(x => x.word);
-      qs.push({ it, prompt: useRadical ? '依各字的偏旁，選出正確的成語' : '依各字的筆畫，選出正確的成語', text: clue, options: shuffle([it.word, ...distract]), answer: it.word, mode: 'word', big: true });
+      const clue = useRadical ? it.chars.map(c => c.r || '？').join('　') : '';
+      const glyphs = useRadical ? null : glyphsFor(it, strokeCount());
+      qs.push({ it, prompt: useRadical ? '依各字的偏旁，選出正確的成語' : '依各字的字形筆畫，選出正確的成語', text: clue, glyphs, options: shuffle([it.word, ...distract]), answer: it.word, mode: 'word', big: true });
     } else if (type === 'blank') {
       if (!it.chars) continue;
       const distract = pick(IDIOMS.filter(x => x.word !== it.word), 3).map(x => x.word);
-      const clue = revealClue(it, false);
-      qs.push({ it, prompt: '只看各字的筆畫數，選出正確的成語', text: clue, options: shuffle([it.word, ...distract]), answer: it.word, mode: 'word', big: true });
+      const glyphs = glyphsFor(it, strokeCount());
+      qs.push({ it, prompt: '只看各字的起始筆畫，選出正確的成語', text: '', glyphs, options: shuffle([it.word, ...distract]), answer: it.word, mode: 'word' });
     } else if (type === 'scramble') {
       const chars = it.word.split('');
       qs.push({ it, prompt: '把四個字依正確順序排好', text: '', scramble: shuffle(chars), answer: it.word, mode: 'order' });
@@ -200,9 +220,12 @@ function renderQ() {
     return;
   }
 
-  const text = el('div', q.big ? 'big' : 'prompt', q.text);
-  text.style.whiteSpace = 'pre-line';
-  body.appendChild(text);
+  if (q.glyphs) body.appendChild(glyphRow(q.glyphs));
+  if (q.text) {
+    const text = el('div', q.big ? 'big' : 'prompt', q.text);
+    text.style.whiteSpace = 'pre-line';
+    body.appendChild(text);
+  }
   const grid = el('div', 'opts');
   q.options.forEach(o => {
     const b = el('button', 'opt', o);
