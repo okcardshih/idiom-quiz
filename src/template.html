@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>成語闖關</title>
+<style>
+:root{
+  --bg:#faf7f2; --card:#ffffff; --ink:#2b2622; --muted:#7a7068; --line:#e6dfd5;
+  --accent:#b95e00; --ok:#2e7d4f; --bad:#b03a2e; --pick:#f3e3cf;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#1d1b19; --card:#2a2622; --ink:#f1ebe3; --muted:#a79d93; --line:#3d3731; --accent:#e09a4f; --ok:#6fbf8d; --bad:#e57b6e; --pick:#3a322b; }
+}
+:root[data-theme="light"]{ --bg:#faf7f2; --card:#ffffff; --ink:#2b2622; --muted:#7a7068; --line:#e6dfd5; --accent:#b95e00; --ok:#2e7d4f; --bad:#b03a2e; --pick:#f3e3cf; }
+:root[data-theme="dark"]{ --bg:#1d1b19; --card:#2a2622; --ink:#f1ebe3; --muted:#a79d93; --line:#3d3731; --accent:#e09a4f; --ok:#6fbf8d; --bad:#e57b6e; --pick:#3a322b; }
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.7}
+main{max-width:720px;margin:0 auto;padding:16px}
+h1{font-size:1.5rem;margin:8px 0 4px}
+.sub{color:var(--muted);margin:0 0 16px;font-size:.95rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
+.types{display:grid;gap:12px;grid-template-columns:1fr}
+@media(min-width:600px){.types{grid-template-columns:1fr 1fr}}
+.type{text-align:left;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:14px;padding:14px;font:inherit}
+.type b{display:block;font-size:1.1rem;color:var(--accent)}
+.type span{color:var(--muted);font-size:.92rem}
+.btn{cursor:pointer;border:0;border-radius:10px;background:var(--accent);color:#fff;padding:10px 18px;font:inherit;font-size:1rem}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.btn:disabled{opacity:.45;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.progress{color:var(--muted);font-size:.9rem}
+.prompt{font-size:1.15rem;margin:6px 0 10px}
+.big{font-size:2rem;letter-spacing:.2em;text-align:center;margin:12px 0}
+.opts{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+.opt{cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:12px;font:inherit;font-size:1.1rem;text-align:center}
+.opt:hover{border-color:var(--accent)}
+.opt.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,var(--card))}
+.opt.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 18%,var(--card))}
+.opt:disabled{cursor:default}
+.tiles{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;min-height:56px;margin:8px 0}
+.tile{width:56px;height:56px;border-radius:12px;border:1px solid var(--line);background:var(--pick);font-size:1.5rem;cursor:pointer;font:inherit;font-size:1.5rem;color:var(--ink)}
+.tile:disabled{cursor:default}
+.answer{border-left:4px solid var(--accent);padding-left:12px}
+.answer dt{color:var(--muted);font-size:.85rem;margin-top:8px}
+.answer dd{margin:0 0 4px}
+.verdict{font-weight:700}
+.verdict.ok{color:var(--ok)} .verdict.bad{color:var(--bad)}
+details{margin-top:8px} summary{cursor:pointer;color:var(--accent)}
+.allusion{white-space:pre-wrap;font-size:.95rem;color:var(--ink)}
+footer{color:var(--muted);font-size:.8rem;margin:24px 0 8px;text-align:center}
+.score{font-size:2.4rem;text-align:center;margin:12px 0}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<main>
+  <section id="home">
+    <h1>成語闖關</h1>
+    <p class="sub">共 <span id="count"></span> 條四字主條成語（教育部《成語典》）。先選題型，再開始作答。</p>
+    <div class="types">
+      <button class="type" data-type="meaning"><b>洞築機先</b><span>看釋義，選出正確成語</span></button>
+      <button class="type" data-type="blank"><b>見微知著</b><span>成語缺一字，依注音選出該字</span></button>
+      <button class="type" data-type="scramble"><b>拼字魔方</b><span>四個字打亂，依序排回成語</span></button>
+      <button class="type" data-type="syn"><b>近義闖關</b><span>看成語，選出正確的近義成語</span></button>
+    </div>
+    <div class="card">
+      <div class="row">
+        <span>題數</span>
+        <span>
+          <button class="btn ghost" data-n="10">10 題</button>
+          <button class="btn ghost" data-n="20">20 題</button>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <section id="quiz" class="hidden">
+    <div class="row"><span class="progress" id="progress"></span><button class="btn ghost" id="quit">離開</button></div>
+    <div class="card">
+      <div class="prompt" id="prompt"></div>
+      <div id="body"></div>
+      <div id="feedback"></div>
+      <div class="row" style="margin-top:12px"><span></span><button class="btn" id="next" disabled>下一題</button></div>
+    </div>
+  </section>
+
+  <section id="result" class="hidden">
+    <h1>結果</h1>
+    <div class="score" id="score"></div>
+    <div class="card" id="review"></div>
+    <div class="row"><button class="btn" id="again">再玩一次</button><button class="btn ghost" id="home2">回首頁</button></div>
+  </section>
+
+  <footer>
+    資料來源：教育部《成語典》（創用CC 姓名標示－禁止改作 3.0 臺灣）。成語釋義、典源與典故說明為原文照錄。
+  </footer>
+</main>
+
+<script>
+const IDIOMS = /*__DATA__*/[];
+
+const $ = (s) => document.querySelector(s);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const pick = (arr, n) => shuffle(arr).slice(0, n);
+
+const TYPE_NAME = { meaning: '洞築機先', blank: '見微知著', scramble: '拼字魔方', syn: '近義闖關' };
+let state = null;
+
+function firstSyn(w) {
+  if (!w) return null;
+  const s = w.split(/[、，,\s]+/).map(x => x.trim()).filter(x => /^[一-鿿]{4}$/.test(x));
+  return s.length ? s[0] : null;
+}
+
+function buildQuestions(type, n) {
+  const pool = shuffle(IDIOMS);
+  const qs = [];
+  for (const it of pool) {
+    if (qs.length >= n) break;
+    if (type === 'meaning') {
+      if (!it.meaning) continue;
+      const distract = pick(IDIOMS.filter(x => x.word !== it.word), 3).map(x => x.word);
+      qs.push({ it, prompt: '下列釋義對應的成語是？', text: it.meaning, options: shuffle([it.word, ...distract]), answer: it.word, mode: 'word' });
+    } else if (type === 'blank') {
+      const pos = Math.floor(Math.random() * 4);
+      const ch = it.word[pos];
+      const distractChars = [...new Set(pick(IDIOMS.filter(x => x.word !== it.word), 12).map(x => x.word[pos]))].filter(c => c !== ch).slice(0, 3);
+      if (distractChars.length < 3) continue;
+      const shown = it.word.slice(0, pos) + '□' + it.word.slice(pos + 1);
+      qs.push({ it, prompt: `依注音選出缺字（第 ${pos + 1} 字）`, text: shown + '\n' + it.zhuyin.split(/\s+/).filter(Boolean).join('　'), options: shuffle([ch, ...distractChars]), answer: ch, mode: 'char', big: true });
+    } else if (type === 'scramble') {
+      const chars = it.word.split('');
+      qs.push({ it, prompt: '把四個字依正確順序排好', text: '', scramble: shuffle(chars), answer: it.word, mode: 'order' });
+    } else if (type === 'syn') {
+      const syn = firstSyn(it.synonyms);
+      if (!syn) continue;
+      const distract = pick(IDIOMS.filter(x => x.word !== it.word && x.word !== syn), 3).map(x => x.word);
+      qs.push({ it, prompt: `「${it.word}」的近義成語是？`, text: '', options: shuffle([syn, ...distract]), answer: syn, mode: 'word' });
+    }
+  }
+  return qs;
+}
+
+function startQuiz(type, n) {
+  const qs = buildQuestions(type, n);
+  if (!qs.length) { alert('題目不足，請換一種題型。'); return; }
+  state = { type, qs, i: 0, correct: 0, log: [] };
+  show('quiz');
+  renderQ();
+}
+
+function show(which) {
+  for (const s of ['home', 'quiz', 'result']) $('#' + s).classList.toggle('hidden', s !== which);
+  window.scrollTo(0, 0);
+}
+
+function renderQ() {
+  const q = state.qs[state.i];
+  $('#progress').textContent = `${TYPE_NAME[state.type]}　第 ${state.i + 1} / ${state.qs.length} 題`;
+  $('#prompt').textContent = q.prompt;
+  const body = $('#body'); body.textContent = '';
+  const fb = $('#feedback'); fb.textContent = '';
+  $('#next').disabled = true;
+  $('#next').textContent = state.i === state.qs.length - 1 ? '看結果' : '下一題';
+
+  if (q.mode === 'order') {
+    const tiles = el('div', 'tiles');
+    const pickedBox = el('div', 'tiles');
+    const pool = q.scramble.map((c, idx) => ({ c, idx, used: false }));
+    const picked = [];
+    const draw = () => {
+      pickedBox.textContent = '';
+      picked.forEach(p => { const b = el('button', 'tile', p.c); b.onclick = () => { p.used = false; picked.splice(picked.indexOf(p), 1); draw(); }; pickedBox.appendChild(b); });
+      tiles.textContent = '';
+      pool.forEach(p => { const b = el('button', 'tile', p.c); b.disabled = p.used; b.onclick = () => { p.used = true; picked.push(p); draw(); if (picked.length === 4) judge(picked.map(x => x.c).join('')); }; tiles.appendChild(b); });
+    };
+    body.appendChild(pickedBox); body.appendChild(tiles);
+    draw();
+    return;
+  }
+
+  const text = el('div', q.big ? 'big' : 'prompt', q.text);
+  text.style.whiteSpace = 'pre-line';
+  body.appendChild(text);
+  const grid = el('div', 'opts');
+  q.options.forEach(o => {
+    const b = el('button', 'opt', o);
+    b.onclick = () => judge(o);
+    grid.appendChild(b);
+  });
+  body.appendChild(grid);
+}
+
+function judge(given) {
+  const q = state.qs[state.i];
+  const ok = given === q.answer;
+  if (ok) state.correct++;
+  state.log.push({ q, given, ok });
+  // lock buttons
+  document.querySelectorAll('#body button').forEach(b => {
+    b.disabled = true;
+    if (b.textContent === q.answer) b.classList.add('ok');
+    if (!ok && b.textContent === given) b.classList.add('bad');
+  });
+  const fb = $('#feedback'); fb.textContent = '';
+  fb.appendChild(el('p', 'verdict ' + (ok ? 'ok' : 'bad'), ok ? '答對了！' : `答錯了，正確答案是「${q.answer}」`));
+  fb.appendChild(answerCard(q.it));
+  $('#next').disabled = false;
+}
+
+function answerCard(it) {
+  const wrap = el('div', 'answer');
+  const dl = el('dl');
+  const add = (k, v) => { if (!v) return; dl.appendChild(el('dt', null, k)); dl.appendChild(el('dd', null, v)); };
+  add('成語', `${it.word}（${it.zhuyin.replace(/　/g, ' ')}）`);
+  add('釋義', it.meaning);
+  add('近義成語', it.synonyms);
+  add('反義成語', it.antonyms);
+  wrap.appendChild(dl);
+  if (it.source || it.allusion) {
+    const d = el('details');
+    d.appendChild(el('summary', null, '典故與典源'));
+    if (it.source) d.appendChild(el('p', null, '典源：' + it.source));
+    if (it.allusion) d.appendChild(el('div', 'allusion', it.allusion));
+    d.appendChild(el('p', null, '資料來源：教育部《成語典》'));
+    wrap.appendChild(d);
+  }
+  return wrap;
+}
+
+function next() {
+  state.i++;
+  if (state.i >= state.qs.length) return finish();
+  renderQ();
+}
+
+function finish() {
+  show('result');
+  const total = state.qs.length;
+  $('#score').textContent = `${state.correct} / ${total}`;
+  const rv = $('#review'); rv.textContent = '';
+  rv.appendChild(el('h3', null, '答題回顧'));
+  state.log.forEach((r, idx) => {
+    const row = el('div', 'answer');
+    row.style.marginBottom = '12px';
+    row.appendChild(el('p', 'verdict ' + (r.ok ? 'ok' : 'bad'), `${idx + 1}. ${r.ok ? '○' : '×'} ${r.q.it.word}`));
+    if (!r.ok) row.appendChild(el('p', null, '你的答案：' + r.given));
+    rv.appendChild(row);
+  });
+}
+
+document.querySelectorAll('.type').forEach(btn => btn.addEventListener('click', () => {
+  const type = btn.dataset.type;
+  const n = Number(document.querySelector('[data-n].active')?.dataset.n || 10);
+  startQuiz(type, n);
+}));
+document.querySelectorAll('[data-n]').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('[data-n]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  btn.style.background = 'var(--pick)';
+}));
+document.querySelector('[data-n="10"]').classList.add('active');
+$('#count').textContent = IDIOMS.length;
+$('#next').addEventListener('click', next);
+$('#quit').addEventListener('click', () => { if (confirm('離開本次測驗？')) show('home'); });
+$('#again').addEventListener('click', () => show('home'));
+$('#home2').addEventListener('click', () => show('home'));
+</script>
+</body>
+</html>
