@@ -59,8 +59,8 @@ footer{color:var(--muted);font-size:.8rem;margin:24px 0 8px;text-align:center}
     <h1>成語闖關</h1>
     <p class="sub">共 <span id="count"></span> 條四字主條成語（教育部《成語典》）。先選題型，再開始作答。</p>
     <div class="types">
-      <button class="type" data-type="meaning"><b>洞築機先</b><span>看釋義，選出正確成語</span></button>
-      <button class="type" data-type="blank"><b>見微知著</b><span>成語缺一字，依注音選出該字</span></button>
+      <button class="type" data-type="meaning"><b>洞築機先</b><span>依各字的偏旁或筆畫，選出正確成語</span></button>
+      <button class="type" data-type="blank"><b>見微知著</b><span>只看各字的筆畫數，選出正確成語</span></button>
       <button class="type" data-type="scramble"><b>拼字魔方</b><span>四個字打亂，依序排回成語</span></button>
       <button class="type" data-type="syn"><b>近義闖關</b><span>看成語，選出正確的近義成語</span></button>
     </div>
@@ -120,16 +120,16 @@ function buildQuestions(type, n) {
   for (const it of pool) {
     if (qs.length >= n) break;
     if (type === 'meaning') {
-      if (!it.meaning) continue;
+      if (!it.chars) continue;
+      const useRadical = Math.random() < 0.5;
+      const clue = it.chars.map(c => (useRadical ? (c.r || '？') : c.s + '畫')).join('　');
       const distract = pick(IDIOMS.filter(x => x.word !== it.word), 3).map(x => x.word);
-      qs.push({ it, prompt: '下列釋義對應的成語是？', text: it.meaning, options: shuffle([it.word, ...distract]), answer: it.word, mode: 'word' });
+      qs.push({ it, prompt: useRadical ? '依各字的偏旁，選出正確的成語' : '依各字的筆畫，選出正確的成語', text: clue, options: shuffle([it.word, ...distract]), answer: it.word, mode: 'word', big: true });
     } else if (type === 'blank') {
-      const pos = Math.floor(Math.random() * 4);
-      const ch = it.word[pos];
-      const distractChars = [...new Set(pick(IDIOMS.filter(x => x.word !== it.word), 12).map(x => x.word[pos]))].filter(c => c !== ch).slice(0, 3);
-      if (distractChars.length < 3) continue;
-      const shown = it.word.slice(0, pos) + '□' + it.word.slice(pos + 1);
-      qs.push({ it, prompt: `依注音選出缺字（第 ${pos + 1} 字）`, text: shown + '\n' + it.zhuyin.split(/\s+/).filter(Boolean).join('　'), options: shuffle([ch, ...distractChars]), answer: ch, mode: 'char', big: true });
+      if (!it.chars) continue;
+      const distract = pick(IDIOMS.filter(x => x.word !== it.word), 3).map(x => x.word);
+      const clue = it.chars.map(c => c.s + '畫').join('　');
+      qs.push({ it, prompt: '只看各字的筆畫數，選出正確的成語', text: clue, options: shuffle([it.word, ...distract]), answer: it.word, mode: 'word', big: true });
     } else if (type === 'scramble') {
       const chars = it.word.split('');
       qs.push({ it, prompt: '把四個字依正確順序排好', text: '', scramble: shuffle(chars), answer: it.word, mode: 'order' });
