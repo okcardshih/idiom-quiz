@@ -27,6 +27,7 @@ h1{font-size:1.5rem;margin:8px 0 4px}
 .type span{color:var(--muted);font-size:.92rem}
 .btn{cursor:pointer;border:0;border-radius:10px;background:var(--accent);color:#fff;padding:10px 18px;font:inherit;font-size:1rem}
 .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.btn.ghost.active{background:var(--pick)}
 .btn:disabled{opacity:.45;cursor:default}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
 .progress{color:var(--muted);font-size:.9rem}
@@ -66,6 +67,13 @@ footer{color:var(--muted);font-size:.8rem;margin:24px 0 8px;text-align:center}
     </div>
     <div class="card">
       <div class="row">
+        <span>難度</span>
+        <span>
+          <button class="btn ghost" data-level="easy">容易：露出 2 個字</button>
+          <button class="btn ghost" data-level="hard">困難：露出 1 個字</button>
+        </span>
+      </div>
+      <div class="row" style="margin-top:12px">
         <span>題數</span>
         <span>
           <button class="btn ghost" data-n="10">10 題</button>
@@ -107,6 +115,17 @@ const pick = (arr, n) => shuffle(arr).slice(0, n);
 
 const TYPE_NAME = { meaning: '洞築機先', blank: '見微知著', scramble: '拼字魔方', syn: '近義闖關' };
 let state = null;
+let level = 'hard';
+
+// 露出的字數由難度決定（至少露出 1 字，不會四個字都要猜）；其餘字顯示筆畫或偏旁
+function revealClue(it, useRadical) {
+  const revealCount = level === 'easy' ? 2 : 1;
+  const idxs = shuffle([0, 1, 2, 3]).slice(0, revealCount);
+  return it.chars.map((c, i) => {
+    if (idxs.includes(i)) return c.c;
+    return useRadical ? (c.r || '？') : c.s + '畫';
+  }).join('　');
+}
 
 function firstSyn(w) {
   if (!w) return null;
@@ -122,13 +141,13 @@ function buildQuestions(type, n) {
     if (type === 'meaning') {
       if (!it.chars) continue;
       const useRadical = Math.random() < 0.5;
-      const clue = it.chars.map(c => (useRadical ? (c.r || '？') : c.s + '畫')).join('　');
+      const clue = revealClue(it, useRadical);
       const distract = pick(IDIOMS.filter(x => x.word !== it.word), 3).map(x => x.word);
       qs.push({ it, prompt: useRadical ? '依各字的偏旁，選出正確的成語' : '依各字的筆畫，選出正確的成語', text: clue, options: shuffle([it.word, ...distract]), answer: it.word, mode: 'word', big: true });
     } else if (type === 'blank') {
       if (!it.chars) continue;
       const distract = pick(IDIOMS.filter(x => x.word !== it.word), 3).map(x => x.word);
-      const clue = it.chars.map(c => c.s + '畫').join('　');
+      const clue = revealClue(it, false);
       qs.push({ it, prompt: '只看各字的筆畫數，選出正確的成語', text: clue, options: shuffle([it.word, ...distract]), answer: it.word, mode: 'word', big: true });
     } else if (type === 'scramble') {
       const chars = it.word.split('');
@@ -262,6 +281,11 @@ document.querySelectorAll('[data-n]').forEach(btn => btn.addEventListener('click
   btn.style.background = 'var(--pick)';
 }));
 document.querySelector('[data-n="10"]').classList.add('active');
+document.querySelectorAll('[data-level]').forEach(btn => btn.addEventListener('click', () => {
+  level = btn.dataset.level;
+  document.querySelectorAll('[data-level]').forEach(b => b.classList.toggle('active', b === btn));
+}));
+document.querySelector('[data-level="hard"]').classList.add('active');
 $('#count').textContent = IDIOMS.length;
 $('#next').addEventListener('click', next);
 $('#quit').addEventListener('click', () => { if (confirm('離開本次測驗？')) show('home'); });
