@@ -33,8 +33,8 @@ h1{font-size:1.5rem;margin:8px 0 4px}
 .progress{color:var(--muted);font-size:.9rem}
 .prompt{font-size:1.15rem;margin:6px 0 10px}
 .big{font-size:2rem;letter-spacing:.2em;text-align:center;margin:12px 0}
-.glyphs{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:12px 0}
-.glyph{width:110px;height:110px;color:var(--ink);background:var(--pick);border-radius:12px}
+.glyphs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-width:440px;margin:12px auto}
+.glyph{width:100%;height:auto;aspect-ratio:1/1;color:var(--ink);background:var(--pick);border-radius:12px}
 .typed{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:16px 0}
 .answer-input{font:inherit;font-size:1.3rem;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);width:min(18rem,70vw);text-align:center}
 .opts{display:grid;gap:10px;grid-template-columns:1fr 1fr}
