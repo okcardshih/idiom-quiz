@@ -35,6 +35,8 @@ h1{font-size:1.5rem;margin:8px 0 4px}
 .big{font-size:2rem;letter-spacing:.2em;text-align:center;margin:12px 0}
 .glyphs{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:12px 0}
 .glyph{width:110px;height:110px;color:var(--ink);background:var(--pick);border-radius:12px}
+.typed{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:16px 0}
+.answer-input{font:inherit;font-size:1.3rem;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);width:min(18rem,70vw);text-align:center}
 .opts{display:grid;gap:10px;grid-template-columns:1fr 1fr}
 .opt{cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:12px;font:inherit;font-size:1.1rem;text-align:center}
 .opt:hover{border-color:var(--accent)}
@@ -62,8 +64,8 @@ footer{color:var(--muted);font-size:.8rem;margin:24px 0 8px;text-align:center}
     <h1>成語闖關</h1>
     <p class="sub">共 <span id="count"></span> 條四字主條成語（教育部《成語典》）。先選題型，再開始作答。</p>
     <div class="types">
-      <button class="type" data-type="meaning"><b>洞築機先</b><span>依各字的偏旁或筆畫，選出正確成語</span></button>
-      <button class="type" data-type="blank"><b>見微知著</b><span>看各字字形的起始筆畫，選出正確成語</span></button>
+      <button class="type" data-type="meaning"><b>洞燭機先</b><span>依各字的偏旁或字形筆畫，打字輸入成語</span></button>
+      <button class="type" data-type="blank"><b>見微知著</b><span>看各字字形的起始筆畫，打字輸入成語</span></button>
       <button class="type" data-type="scramble"><b>拼字魔方</b><span>四個字打亂，依序排回成語</span></button>
       <button class="type" data-type="syn"><b>近義闖關</b><span>看成語，選出正確的近義成語</span></button>
     </div>
@@ -116,7 +118,10 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const pick = (arr, n) => shuffle(arr).slice(0, n);
 
-const TYPE_NAME = { meaning: '洞築機先', blank: '見微知著', scramble: '拼字魔方', syn: '近義闖關' };
+// 比對輸入：忽略空白與標點，其餘必須完全相同
+function norm(s) { return (s || '').replace(/[\s　、，。,.．！!？?;；:：「」『』"'“”]/g, ''); }
+
+const TYPE_NAME = { meaning: '洞燭機先', blank: '見微知著', scramble: '拼字魔方', syn: '近義闖關' };
 let state = null;
 let level = 'hard';
 
@@ -163,12 +168,12 @@ function buildQuestions(type, n) {
       const distract = pick(IDIOMS.filter(x => x.word !== it.word), 3).map(x => x.word);
       const clue = useRadical ? it.chars.map(c => c.r || '？').join('　') : '';
       const glyphs = useRadical ? null : glyphsFor(it, strokeCount());
-      qs.push({ it, prompt: useRadical ? '依各字的偏旁，選出正確的成語' : '依各字的字形筆畫，選出正確的成語', text: clue, glyphs, options: shuffle([it.word, ...distract]), answer: it.word, mode: 'word', big: true });
+      qs.push({ it, prompt: useRadical ? '依各字的偏旁，選出正確的成語' : '依各字的字形筆畫，選出正確的成語', text: clue, glyphs, answer: it.word, mode: 'typed', big: true });
     } else if (type === 'blank') {
       if (!it.chars) continue;
       const distract = pick(IDIOMS.filter(x => x.word !== it.word), 3).map(x => x.word);
       const glyphs = glyphsFor(it, strokeCount());
-      qs.push({ it, prompt: '只看各字的起始筆畫，選出正確的成語', text: '', glyphs, options: shuffle([it.word, ...distract]), answer: it.word, mode: 'word' });
+      qs.push({ it, prompt: '只看各字的起始筆畫，選出正確的成語', text: '', glyphs, answer: it.word, mode: 'typed' });
     } else if (type === 'scramble') {
       const chars = it.word.split('');
       qs.push({ it, prompt: '把四個字依正確順序排好', text: '', scramble: shuffle(chars), answer: it.word, mode: 'order' });
@@ -226,6 +231,23 @@ function renderQ() {
     text.style.whiteSpace = 'pre-line';
     body.appendChild(text);
   }
+  if (q.mode === 'typed') {
+    const wrap = el('div', 'typed');
+    const input = el('input', 'answer-input');
+    input.type = 'text';
+    input.placeholder = '請輸入四字成語';
+    input.maxLength = 12;
+    input.autocomplete = 'off';
+    const btn = el('button', 'btn', '送出');
+    const submit = () => { if (input.value.trim()) judge(input.value.trim()); };
+    btn.onclick = submit;
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+    wrap.appendChild(input);
+    wrap.appendChild(btn);
+    body.appendChild(wrap);
+    setTimeout(() => input.focus(), 0);
+    return;
+  }
   const grid = el('div', 'opts');
   q.options.forEach(o => {
     const b = el('button', 'opt', o);
@@ -237,7 +259,8 @@ function renderQ() {
 
 function judge(given) {
   const q = state.qs[state.i];
-  const ok = given === q.answer;
+  const ok = norm(given) === norm(q.answer);
+  document.querySelectorAll('#body input').forEach(i => { i.disabled = true; });
   if (ok) state.correct++;
   state.log.push({ q, given, ok });
   // lock buttons
