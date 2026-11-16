@@ -93,7 +93,7 @@ footer{color:var(--muted);font-size:.8rem;margin:24px 0 8px;text-align:center}
       <div class="prompt" id="prompt"></div>
       <div id="body"></div>
       <div id="feedback"></div>
-      <div class="row" style="margin-top:12px"><span></span><button class="btn" id="next" disabled>下一題</button></div>
+      <div class="row" style="margin-top:12px"><button class="btn ghost" id="giveup">放棄</button><button class="btn" id="next" disabled>下一題</button></div>
     </div>
   </section>
 
@@ -207,6 +207,7 @@ function renderQ() {
   const body = $('#body'); body.textContent = '';
   const fb = $('#feedback'); fb.textContent = '';
   $('#next').disabled = true;
+  $('#giveup').disabled = false;
   $('#next').textContent = state.i === state.qs.length - 1 ? '看結果' : '下一題';
 
   if (q.mode === 'order') {
@@ -270,9 +271,11 @@ function judge(given) {
     if (!ok && b.textContent === given) b.classList.add('bad');
   });
   const fb = $('#feedback'); fb.textContent = '';
-  fb.appendChild(el('p', 'verdict ' + (ok ? 'ok' : 'bad'), ok ? '答對了！' : `答錯了，正確答案是「${q.answer}」`));
+  const gaveUp = given === '（放棄）';
+  fb.appendChild(el('p', 'verdict ' + (ok ? 'ok' : 'bad'), ok ? '答對了！' : (gaveUp ? `已放棄，答案是「${q.answer}」` : `答錯了，正確答案是「${q.answer}」`)));
   fb.appendChild(answerCard(q.it));
   $('#next').disabled = false;
+  $('#giveup').disabled = true;
 }
 
 function answerCard(it) {
@@ -334,6 +337,7 @@ document.querySelectorAll('[data-level]').forEach(btn => btn.addEventListener('c
 document.querySelector('[data-level="hard"]').classList.add('active');
 $('#count').textContent = IDIOMS.length;
 $('#next').addEventListener('click', next);
+$('#giveup').addEventListener('click', () => { if (!$('#giveup').disabled) judge('（放棄）'); });
 $('#quit').addEventListener('click', () => { if (confirm('離開本次測驗？')) show('home'); });
 $('#again').addEventListener('click', () => show('home'));
 $('#home2').addEventListener('click', () => show('home'));
